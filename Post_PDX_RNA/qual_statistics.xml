@@ -1,0 +1,36 @@
+<tool name="Quality_and_Statistics" tool_config_prefix="filter_trim"  walltime="23:00:00" >
+    <!-- What does this tool do? -->
+    <description>
+        Checks paired end fastq files for overall quality, and performs
+        some statistical analysis.
+        Terminates the run if less than 50% HQ reads.
+    </description>
+    
+    <!--
+        Files passed to this tool, ins and outs:
+        Ins: 
+          1: end1.fastq
+          2: end2.fastq
+          3: filter directory
+        Outs:
+          1: end1.fq_trimmed
+          2: end2.fq_trimmed
+
+        Note that out_1 and out_2 are not referenced in this file.
+        These files are produced implicitly.  But by referencing them
+        in the outs list, we get them appropriately marked for
+        our file-based dependency job scheduling.
+    -->
+    
+    <!-- Specify any modules needed for this tool -->
+    <module>python/2.7.3</module>
+
+  
+    <option name="qual_cutoff"   command_text="-M" value="50" />
+
+ 
+    <command program="filter_trim.py" >
+    <version_command>filter_trim.py --version</version_command>
+       {qual_cutoff} -d {in_3} {in_1} {in_2}
+    </command>
+</tool>

@@ -1,0 +1,26 @@
+<tool name="AddName_and_Normalization"  tool_config_prefix="Add_GeneName" walltime="02:00:00">
+  <description>
+    Add geneName to RSEM isoforms.results file
+  </description>
+
+  <!--
+      Files:
+      Ins:  *genes.results
+      Ins:  *isoforms.results
+      Ins:  *hg19_final/mm10_final
+      Outs: *genes.results.Normalized
+      Outs: *genes.results.withGeneName
+      Outs: *isoforms.results.Normalized
+      Outs: *isoforms.results.withGeneName
+  -->
+  <!-- Modules needed to run on the cluster -->
+     
+  <module>R</module>
+  <module>perl/cga</module>
+
+  <command program="GeneName_and_Normalization_without_UCSC.pl">
+   -i1 {in_1} -i2 {in_2} -a1 {in_3} 
+  </command>
+
+
+</tool>

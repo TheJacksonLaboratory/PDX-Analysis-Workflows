@@ -1,0 +1,21 @@
+<tool name="Aggregate_stats"
+    walltime="00:30:00">
+    <description>
+        Compile alignment QC, duplication metrics and coverage statistics into a single file
+    </description>
+    <!--
+        Step 6.1
+
+        inputs:
+        1: stat file
+        2: Duplication metrics file
+        3: Picard HsMetrics
+        outputs:
+        1: summary statistics file
+    -->   
+    
+    <module>python/2.7.3</module>  
+    <command program="aggregate_stats_updated.py">
+        {out_1} {in_1} {in_2} {in_3}
+    </command>
+</tool>

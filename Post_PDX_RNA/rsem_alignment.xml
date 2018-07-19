@@ -1,0 +1,37 @@
+<tool name="RSEM_alignment_exp"
+    threads="12"
+    tool_config_prefix="rsem_aln_exp"
+    walltime="24:00:00">
+    <description>
+        Align a pair of (filtered, trimmed) fastq files.  Any quality checking and trimming
+        should be done before this step.
+    </description>
+    <!-- Files:
+        Ins:
+          1: end1.fastq
+          2: end2.fastq 
+          3: reference base name
+        OutS:
+          1. genome.bam (based on sample name)
+    -->
+    
+    <!-- Modules needed to run on the cluster -->
+     <module>samtools/0.1.18</module>
+     <module>bowtie2/2.2.0</module>
+     <module>rsem/1.2.19</module>
+   
+
+    <command program="">
+        base=`basename {out_1} .genome.sorted.bam`
+    </command>
+
+
+     <option name="phredquals"              command_text=""                      value="--phred33-quals"     />
+     <option name="seed-length"             command_text="--seed-length"         value="25"   />
+     <option name="strand-specific"         command_text="--forward-prob"        value="0.5"     />
+
+    <command program="rsem-calculate-expression" stderr_id="out_2">
+        -p 8 {phredquals}   {seed-length} {strand-specific} --time --output-genome-bam --bowtie2 --paired-end {in_1} {in_2} {in_3} $base
+    </command>
+
+</tool>

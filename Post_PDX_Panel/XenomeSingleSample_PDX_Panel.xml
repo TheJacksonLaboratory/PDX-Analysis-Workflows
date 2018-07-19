@@ -1,0 +1,205 @@
+<pipeline name="XenomeSingleSample_PDX_Panel.xml">
+    <!-- First, set up the files this pipeline will use -->
+    <!--
+        At first, these will all be real files.  Over time we may
+        make some of them tempfiles, to get cleaned up at the end.
+    -->
+
+    <!--
+        The files needed for the first step of the pipeline: Quality and
+        Statistics
+    -->
+    <file id="e1_fastq1" input="True" parameter="1" />
+    <filelist id="remaining_fastqs" input="True" parameter="2" />
+
+    <!--
+        To mitigate the possibility of file name hits when multiple 
+        pipelines are run simultaneously, we'll create some files with
+        the sample name as a prefix.
+    -->
+    <file id="sample_name" based_on="e1_fastq1" pattern="(.*?)(_|\.)R1.*"
+          replace="\1" />
+
+     <!-- The pipeline's default output directory. -->
+    <dir id="outdir" based_on="sample_name" datestamp_prepend="%y%m%d-%H%M%S_" default_output="True" />
+    <file id="human_1"     in_dir="outdir" temp="True"    filespec="human_1.fastq" />
+    <file id="human_2"     in_dir="outdir" temp="True"    filespec="human_2.fastq" />
+    <file id="xenome_classification"           in_dir="outdir"     based_on="sample_name"    append="_xenome_stats.txt"   />
+
+   <dir id="filter" filespec="filter" in_dir="outdir" />
+
+   <!-- The next files have filenames based on previously declared files. -->
+    <!-- The pipeline will generate these files. -->
+    <file id="e1_trimmed" temp="True" in_dir="filter"
+        based_on="e1_fastq1" append="_filtered_trimmed" />
+    <file id="e2_trimmed" temp="True" in_dir="filter"
+        based_on="e1_trimmed" pattern="(.*?)(_|\.)R1(.*)"
+        replace="\1\2R2\3"/>
+    <file id="stats" in_dir="filter" based_on="e1_fastq1" pattern="(.*)(_|\.)R1(.*)"
+                  replace="\1\2R1\3_\1\2R2\3_stat" />
+
+<!-- reference files required by the pipeline; also read individual tools xml for other files -->
+
+<!-- hg38 reference files-->
+    <file id="ref" input="True" 
+          filespec="Homo_sapiens_assembly38.fasta"/>
+
+<!-- Xenome indices for classification -->
+     <file id="XenomeIndices" input="True" filespec="hg38_NOD_based_on_mm10_k25" />        
+
+<!-- bwa-alt-aware indices -->
+    <file id="bwa7_idx_pfx"
+          filespec="hg38_bwa_alt_aware_indices/"/>
+
+<!-- cosmic annnotation file -->
+     <file id="cosmic" input="True"
+               filespec="Sorted_Cosmicv80_Coding_Noncoding.vcf"/>
+
+    <step name="Qual_Stat">
+        <tool name="Quality_and_Statistics"
+            input="e1_fastq1, remaining_fastqs, filter"
+            output="e1_trimmed, e2_trimmed, stats"
+            description="qual_statistics.xml" />
+    </step>
+
+    <step name="Classification">
+      <tool name="XENOME"
+       input="e1_trimmed, e2_trimmed, XenomeIndices"
+       output="human_1, human_2, xenome_classification"
+       description="xenome_classification_DNA.xml" />
+    </step>
+
+
+    <!-- Files for the bwa alignment (in addition to those above)... -->
+    <file id="bam" in_dir="outdir" temp="True" filespec="out.aln.bam" />
+
+    <step name="Alignment">
+
+        <tool name="BWA_MEM_Alignment"
+            input="human_1, human_2, bwa7_idx_pfx"
+            output="bam"
+            description="bwa_mem.xml" />
+     </step>
+
+
+    <file id="bam_dedupe" temp="True"   based_on="sample_name"
+          append="_dedupe.bam" />
+    <!--
+	Not referenced in the pipeline; implicitly created.
+	Just an entry to mark it as temp. More like this below.
+    -->
+    <file id="bam_dedupe_bai"  temp="True"  based_on="sample_name"
+          append="_dedupe.bai" />
+
+    <file id="dedup_metrics" based_on="sample_name"
+          append="_dup_metrics.dat" />
+    <file id="final_bam" in_dir="outdir" temp="True"  based_on="sample_name"
+          append="_realigned_BQSR.bam" />
+
+<file id="coverage_metrics" in_dir="outdir"filespec="CoverageMetrics.txt"/>
+
+    <step name="Variant_Preprocessing">
+        <tool name="Variant_Pre_Processing_1"
+            input="bam, outdir"
+            output="bam_dedupe,dedup_metrics"
+            description="variant_pre_proc_1.xml" />
+
+        <tool name="Variant_Pre_Processing_2"
+            input="bam_dedupe, outdir, ref"
+            output="final_bam" 
+            description="variant_pre_proc_2.xml" />
+
+        <tool name="Variant_Pre_Processing_3"
+            input="final_bam,outdir,ref"
+            output="coverage_metrics"
+            description="variant_pre_proc_3.xml" />
+    </step>
+    
+    <file id="variants_raw" in_dir="outdir" temp="True" based_on="sample_name"
+          append="_variants.raw.vcf" />
+
+    <file id="variants_raw_idx" in_dir="outdir" temp="True" based_on="sample_name"
+          append="_variants.raw.vcf.idx" />
+
+    <file id="variants_filtered" in_dir="outdir" based_on="sample_name"
+          append="_variants.DPfiltered.vcf" />
+
+    <file id="microIndels_raw" in_dir="outdir" temp="True" based_on="sample_name"
+          append="_microIndels.raw.vcf" />
+     
+    <file id="microIndels_filtered1" in_dir="outdir" temp ="True" based_on="sample_name"
+          append="_microIndels.DPfiltered1.vcf" />
+
+    <file id="microIndels_filtered2" in_dir="outdir" based_on="sample_name"
+          append="_microIndels.DPfiltered.vcf" />
+
+    <file id="variants_annotated" in_dir="outdir" based_on="sample_name"
+          append="_variants_microIndels.DPfiltered.Annotated.tab" />
+          
+    <file id="variants_annotated_hardfiltered" in_dir="outdir" based_on="sample_name"
+          append="_variants_microIndels.Hardfiltered.Annotated.txt" />
+
+    <step name="Variant_Calling">
+        <tool name="Variant_Caller"
+            input="final_bam, outdir, ref"
+            output="variants_raw"
+            description="variant_calling.xml" />
+
+        <tool name="Variant_Filtration"
+            input="variants_raw"
+            output="variants_filtered"
+            description="variant_filtration_gatk.xml" />
+
+
+          <tool name="microIndel_Caller"
+            input="final_bam,sample_name, ref, target_bed_gatk,outdir"
+            output="microIndels_raw, microIndels_filtered1"
+            description="microIndel_calling.xml" />
+
+
+         <tool name="microIndel_filtration"
+            input="microIndels_filtered1"
+            output="microIndels_filtered2"
+            description="variant_filtration_pindel.xml" />
+        
+            
+         <tool name="Variant_Annotation"
+            input="variants_filtered,microIndels_filtered2,outdir,cosmic"
+            output="variants_annotated,variants_annotated_hardfiltered"
+            description="variant_annotation.xml" />
+
+    </step>
+
+   <file id="summary_stats" in_dir="outdir" based_on="sample_name" append="_summary_stats.txt" />
+   <file id="gatkcov_temp1" in_dir="outdir"   temp= "True"
+          filespec="gatk_temp1.txt" />
+   <file id="gatkcov_temp2" in_dir="outdir"   temp= "True"
+          filespec="gatk_temp2.txt" />
+   <file id="gatkcov_temp3" in_dir="outdir"   temp= "True"
+          filespec="gatk_temp3.txt" />
+   <file id="gatkcov_bed" in_dir="outdir" based_on="sample_name"
+          append="_targetinterval_avg_median_coverage.bed" />
+
+   <step name="Summarize">
+    <tool name="Aggregate_stats"
+     input="stats, dedup_metrics, coverage_metrics"
+     output="summary_stats"
+     description="aggregate_stats_updated.xml" />
+
+    <tool name="gatkcoveragestats"
+            input="final_bam,ref,outdir"
+            output="gatkcov_temp1,gatkcov_temp2,gatkcov_temp3,gatkcov_bed"
+            description="gatkcoveragestats.xml" />
+
+
+
+   </step>
+
+
+    <step name="REMOVEFILES">
+        <tool name="RemoveOtherFiles"
+            input="variants_annotated,gatkcov_bed"
+            description="removeFiles.xml" />
+    </step>
+
+</pipeline>

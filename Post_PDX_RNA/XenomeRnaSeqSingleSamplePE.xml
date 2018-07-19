@@ -1,0 +1,155 @@
+<pipeline name="XenomeRnaSeqSingleSamplePE.xml">
+
+    <!--
+        The files needed for the first step of the pipeline: Quality and
+        Statistics
+    -->
+    <file id="e1_fastq" input="True" parameter="1" />
+    <filelist id="remaining_fastqs" input="True" parameter="2" />
+
+    <!--
+        To mitigate the possibility of file name hits when multiple 
+        pipelines are run simultaneously, we'll create some files with
+        the sample name as a prefix.
+    -->
+    <file id="sample_name" based_on="e1_fastq" pattern="(.*?)(_|\.)R1.*"
+          replace="\1" />
+
+    <!-- Step 1 -->
+
+    <!-- The pipeline's default output directory. -->
+    <dir id="outdir" based_on="sample_name" datestamp_prepend="%y%m%d-%H%M%S_" default_output="True" />
+    <file id="human_1"         in_dir="outdir" temp="True"    filespec="human_1.fastq" />
+    <file id="human_2"         in_dir="outdir" temp="True"    filespec="human_2.fastq" />
+    <file id="ambiguous_1"     in_dir="outdir" temp="True"    filespec="ambiguous_1.fastq" />
+    <file id="ambiguous_2"     in_dir="outdir" temp="True"    filespec="ambiguous_2.fastq" />
+    <file id="both_1"          in_dir="outdir" temp="True"    filespec="both_1.fastq" />
+    <file id="both_2"          in_dir="outdir" temp="True"    filespec="both_2.fastq" />
+    <file id="mouse_1"         in_dir="outdir" temp="True"    filespec="mouse_1.fastq" />
+    <file id="mouse_2"         in_dir="outdir" temp="True"    filespec="mouse_2.fastq" />
+    <file id="neither_1"       in_dir="outdir" temp="True"    filespec="neither_1.fastq" />
+    <file id="neither_2"       in_dir="outdir" temp="True"    filespec="neither_2.fastq" />
+
+
+    <dir id="filter" filespec="filter" in_dir="outdir" />
+
+    <dir id="suppor_files_index_dir"   filespec="RNA/Final_Supporting_Files_RNA_hg38/"  create="False" />
+    <dir id="index_dir"  input ="True" filespec="RNA/hg38_RNA_RSEM_Primary_Built_Indices/"  />
+
+    <!-- The next files have filenames based on previously declared files. -->
+    <!-- The pipeline will generate these files. -->
+    <file id="e1_trimmed" temp="True" in_dir="filter"
+        based_on="e1_fastq" append="_filtered_trimmed" />
+    <file id="e2_trimmed" temp="True" in_dir="filter"
+        based_on="e1_trimmed" pattern="(.*?)(_|\.)R1(.*)"
+        replace="\1\2R2\3"/>
+
+   <file id="stats" in_dir="filter" based_on="e1_fastq" pattern="(.*)(_|\.)R1(.*)"
+                  replace="\1\2R1\3_\1\2R2\3_stat" />
+
+   <file id="ref"       input="True"  filespec="Homo_sapiens.GRCh38.dna.toplevel_access_mod_chr1_22_X_Y_MT.fa"   in_dir="index_dir"/>   
+   <file id="NamesGene" input="True"  filespec="updated_hg38_unplaced"    in_dir="suppor_files_index_dir"/>
+   <file id="refGTF"    input="True"  filespec="Homo_sapiens.GRCh38.84.chr_patch_hapl_scaff_access_mod_1_22_x_y_MT.gtf" in_dir="index_dir" />
+   <file id="refbowtie2_gene_name"    filespec="Homo_sapiens.GRCh38.dna.toplevel_access_mod_chr1_22_X_Y_MT"                                         in_dir="index_dir" />   
+   <file id="XenomeRNAIndices" input="True" filespec="trans_human_GRCh38_84_NOD_based_on_mm10_k25"  in_dir="index_dir" />
+
+   <dir id="HumanPicardRef"  input ="True" filespec="RNA/HumanPicardData_hg38_for_aln_summary/" create="False"/>
+
+   <file id="refFlat"             in_dir="HumanPicardRef"  filespec="refFlat.txt"  />
+   <file id="rRNAInterval"        in_dir="HumanPicardRef"  filespec="interval_rRNA"
+
+    <step name="Qual_Stat">
+        <tool name="QnS"
+            input="e1_fastq, remaining_fastqs, filter"
+            output="e1_trimmed, e2_trimmed, stats"
+            description="qual_statistics.xml" />
+    </step>
+
+    <file id="xenome_classification" in_dir="outdir" based_on="sample_name" append="_xenome_stats.txt"   />
+
+    <step name="Classification">
+     <tool name="XENOME"
+      input="e1_trimmed, e2_trimmed, XenomeRNAIndices"
+      output="human_1, human_2, xenome_classification"
+      description="xenome_classification_RNA.xml" />
+    </step>
+
+    <!-- Output -->
+
+    <file id="genome_bam"       based_on="sample_name"  temp="True"  append=".genome.sorted.bam"       />
+    <file id="genome_bai"       based_on="sample_name"  temp="True"  append=".genome.sorted.bam.bai"   />
+    <file id="genome_bam_only"  based_on="sample_name"  temp="True" append=".genome.bam"   />
+    <file id="rsem_aln_met"     based_on="sample_name"  append="_rsem_aln.stats"           />
+
+
+    <step name="Alignment_Expression">
+      <tool name="rsem_align_expression"
+       input="human_1, human_2, refbowtie2_gene_name"
+       output="genome_bam, rsem_aln_met"
+       description="rsem_alignment.xml" />
+    </step>
+
+
+    <file id="genes_results"           based_on="sample_name" append=".genes.results"    />
+    <file id="isoforms_results"        based_on="sample_name" append=".isoforms.results" />
+    <file id="genes_results_norm"      based_on="sample_name" append=".genes.results.Normalized"  />
+
+
+    <step name="Add_name_normalization">
+      <tool name="AddName_and_Normalization"
+         input="genes_results,isoforms_results,NamesGene,genome_bam"
+         output="genes_results_norm"
+         description="add_gene_name_normalization_out.xml" />
+    </step>
+
+
+    <file id="read_group" temp="True" in_dir="outdir" filespec="read_group.txt" />
+
+    <file id="bam"            in_dir="outdir" temp="True"  based_on="sample_name"  append="_genome_bam_with_read_group.bam" />
+    <file id="bam_index"      in_dir="outdir" temp="True"  based_on="sample_name"  append="_genome_bam_with_read_group.bai" />
+    <file id="bam_reorder"    in_dir="outdir" temp="True"  based_on="sample_name"  append="_genome_bam_with_read_group_reorder.bam"  />
+    <file id="bam_reord_idx"  in_dir="outdir" temp="True"  based_on="sample_name"  append="_genome_bam_with_read_group_reorder.bai" />
+    <file id="picard_aln_metrics"    in_dir="outdir"              based_on="sample_name"  append="_picard_aln_metrics.txt" />
+    <file id="plot"           in_dir="outdir"              based_on="sample_name"  append="_coverage_vs_transcript_plot.pdf" />
+    <file id="bam_sort"       in_dir="outdir" temp="True"  based_on="sample_name"  append="_reorder_sort.bam" />
+    <file id="bam_sort_bai"   in_dir="outdir" temp="True"  based_on="sample_name"  append="_reorder_sort.bai" />
+
+    
+    <file id="summary_stats" in_dir="outdir" based_on="sample_name" append="_summary_stats.txt" />
+         
+    <step name="Alignment_Metrics">
+     <tool name="Read_group"
+      input="e1_fastq"
+      output="read_group"
+      description="read_group.xml" />
+
+     <tool name="Align_Metrics"
+      input="genome_bam, read_group, ref, refFlat, rRNAInterval "
+      output="bam,bam_reorder,bam_sort, picard_aln_metrics, plot"  
+      description="picard_alignment_metrics.xml" />
+
+     <tool name="summary_Metrics"
+        input="stats, xenome_classification, rsem_aln_met, picard_aln_metrics"
+        output="summary_stats"
+        description="summary_metrics.xml" />
+     </step>    
+
+
+<!--
+   <file id="classifier_in" input="True"  filespec="EBVlym_classifier_table_48.txt"                        in_dir="suppor_files_index_dir"/>
+
+This file is provided as supplementary table in manuscript
+
+-->
+   <file id="classification_out"      based_on="sample_name" append=".classification"  />
+
+    <string id="sample_name_str" based_on="sample_name" />
+    <step name="Classification_and_Coverage">
+       <tool name="classify_and_cover"
+          input="genes_results_norm,classifier_in, sample_name_str, CCPcov_bed"
+          output="classification_out"
+          description="classifier_and_coverage.xml" />
+
+    </step>
+
+</pipeline>

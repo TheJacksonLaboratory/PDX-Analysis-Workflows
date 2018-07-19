@@ -1,0 +1,75 @@
+<tool name="Alignment_Metrics" tool_config_prefix="AlnMetrics" walltime="12:00:00">
+    <description>
+        Collecting Alignment metrics.
+    </description>
+    <!-- Files used:
+        Ins: 
+          1. genome.bam
+          2. read_group
+          3. ref_seq   (fasta file)
+          4: ref_flat
+          5: rRNA_interval 
+        Outs:
+          1. genome_bam_read_group.bam
+          2. genome_bam_read_group_reorder.bam
+          3: genome_bam_read_group_reorder_sorted.bam
+          4. aln_metrics.txt
+          5. chart output from picard
+
+    -->
+
+    <module>java/1.8.0</module>
+    <module>samtools/0.1.18</module>
+    <module>python/2.7.9</module>
+    <module>R/3.1.1</module>
+    <validate>picard/2.8.1/picard.jar</validate>
+
+
+    <!-- Step3.1: Adding readgroup information  -->
+
+    <!-- Create an option for the read group, from the contents of rg_info -->
+      <option name="rg"  command_text=""  from_file="in_2" />
+        <command program="java">
+         -Djava.io.tmpdir=$TMPDIR
+         -Xmx4g -jar /opt/compsci/picard/2.8.1/picard.jar AddOrReplaceReadGroups
+         INPUT={in_1} OUTPUT={out_1}
+         SORT_ORDER=coordinate
+         {rg}
+         CREATE_INDEX=true
+        </command>
+
+
+   <!-- Step3.2:  Picard Reorder Bam file   -->
+   <command program="java">
+         -Djava.io.tmpdir=$TMPDIR
+         -Xmx4g -jar  /opt/compsci/picard/2.8.1/picard.jar ReorderSam
+         INPUT={out_1}  
+         OUTPUT={out_2}
+         REFERENCE={in_3}
+         CREATE_INDEX=true
+   </command>
+
+
+    <!-- Step3.1: Picard SortSam.jar (generating sorted alignment bam file) -->
+    <command program="java">
+          -Djava.io.tmpdir=$TMPDIR
+          -Xmx8g -jar /opt/compsci/picard/2.8.1/picard.jar SortSam SO=coordinate
+           INPUT={out_2} 
+           OUTPUT={out_3} 
+           VALIDATION_STRINGENCY=SILENT
+           CREATE_INDEX=true
+     </command>
+
+    <option name="SEQ_STRAND" command_text="STRAND="  value="NONE" />
+
+     <command program="java">
+       -Djava.io.tmpdir=$TMPDIR
+       -Xmx4g -jar /opt/compsci/picard/2.8.1/picard.jar CollectRnaSeqMetrics
+        I={out_3}
+        O={out_4}
+        REF_FLAT={in_4}
+        RIBOSOMAL_INTERVALS={in_5}  {SEQ_STRAND}
+        CHART_OUTPUT={out_5}
+      </command>
+
+</tool>

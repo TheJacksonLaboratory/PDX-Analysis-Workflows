@@ -1,0 +1,11 @@
+<tool name="remove"  tool_config_prefix="removeFiles" walltime="00:15:00">
+  <description>
+    Remove Files
+  </description>
+
+
+
+  <command program="">
+  rm raw_gatk.vcf.idx raw_indels.vcf.idx raw_snps.vcf.idx  filtered_indels.vcf.idx filtered_snps.vcf.idx *.bai out.hla.top out.log.bwamem out.log.hla out.hla.all 
+  </command>
+</tool>

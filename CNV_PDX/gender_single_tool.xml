@@ -1,0 +1,122 @@
+<tool name="Gender_single" tool_config_prefix="GENDER1"
+      threads="1"
+      walltime="8:00:00"
+      error_strings="'##### ERROR MESSAGE:'">
+
+    <description>
+        Get gender from elims or genotype and prepare listfile
+    </description>
+    <!--
+     Ins:
+        1: model
+        2: snp_cel
+        3: norm_cel
+        4: hapmap_list_female
+        5: hapmap_list_male
+        6: outdir
+     Outs:
+        1: gender_final
+        2: cel_list
+        3: gender_elims
+        4: gender_birdseed
+     
+    -->
+    
+    <!-- Modules needed to run on the cluster -->
+    <module>python</module>
+    <module>apt/1.15.0</module>
+
+    <file id="elims_gender" input="True" filespec="bin/get_model_gender.py" />
+
+    <command program="" >
+        {elims_gender} {in_1} > {out_3}
+    </command>
+
+    <file id="list_file" temp="True" filespec="listfile" in_dir="in_6" />
+
+    <command program="echo">
+        "cel_files" > {list_file}
+    </command>
+     
+    <command program="echo">
+        {in_2} >> {list_file}
+    </command>
+
+    <command program="awk" delimiters="||">
+        -v a=|in_3| '{if (NR>1) print a"/"$2}' |in_4| >> |list_file|
+    </command>
+    
+    <command program="awk" delimiters="||">
+        -v a=|in_3| '{if (NR>1) print a"/"$2}' |in_5| >> |list_file|
+    </command>
+    
+    <file id="cdf" input="True"
+    filespec="PennCNV_Affy/gw6/lib/CD_GenomeWideSNP_6_rev3/Full/GenomeWideSNP_6/LibFiles/GenomeWideSNP_6.cdf" />
+
+    <file id="birdseed_models" input="True"
+    filespec="PennCNV_Affy/gw6/lib/CD_GenomeWideSNP_6_rev3/Full/GenomeWideSNP_6/LibFiles/GenomeWideSNP_6.birdseed.models" />
+    
+    <file id="special_snps" input="True"
+    filespec="PennCNV_Affy/gw6/lib/CD_GenomeWideSNP_6_rev3/Full/GenomeWideSNP_6/LibFiles/GenomeWideSNP_6.specialSNPs" />
+    
+    <file id="birdseed_report" temp="True" filespec="birdseed.report.txt" in_dir="in_6" />
+    <file id="birdseed_confidences" temp="True" filespec="birdseed.confidences.txt" in_dir="in_6" />
+    <file id="birdseed_calls" temp="True" filespec="birdseed.calls.txt" in_dir="in_6" />
+    
+    <file id="birdseed_report1" temp="False" filespec="birdseed.report1.txt" in_dir="in_6" />
+    <file id="birdseed_confidences1" temp="False" filespec="birdseed.confidences1.txt" in_dir="in_6" />
+    <file id="birdseed_calls1" temp="False" filespec="birdseed.calls1.txt" in_dir="in_6" />
+
+    <command program="">
+        apt-probeset-genotype -c {cdf} -a birdseed --read-models-birdseed {birdseed_models} --special-snps {special_snps} --out-dir {in_6} --cel-files {list_file}
+    </command>
+    
+    <command program="cat" >
+        {birdseed_report} | grep -v "#" | awk 'NR==2' | cut -f2 > {out_4}
+    </command>
+
+    <command program="" >
+        gender=`cat {out_3}`
+    </command>
+    
+    <command program="">
+        if [ "X$gender" = "Xunknown" -o "X$gender" = "Xunspecified" ];
+        then
+            gender=`cat {out_4}`;
+            cp {out_4} {out_1};
+        else
+            cp {out_3} {out_1};
+        fi
+    </command>
+    
+    <command program="echo">
+        "cel_files" > {out_2}
+    </command>
+
+    <command program="echo">
+        {in_2} >> {out_2}
+    </command>
+    
+    <command program="" delimiters="##">
+        if [ "X$gender" = "Xfemale" -o "X$gender" = "Xunknown" ];
+        then
+            awk -v a=#in_3# '{if (NR>1) print a"/"$2}' #in_4# >> #out_2#;
+        elif [ "X$gender" = "Xmale" ];
+        then
+            awk -v a=#in_3# '{if (NR>1) print a"/"$2}' #in_5# >> #out_2#;
+        fi
+    </command>
+    
+    <command program="cat">
+        {birdseed_confidences} | grep -v "#" | cut -f1-2 > {birdseed_confidences1}
+    </command>
+    
+    <command program="cat">
+        {birdseed_calls} | grep -v "#" | cut -f1-2 > {birdseed_calls1}
+    </command>
+    
+    <command program="cat">
+        {birdseed_report} | grep -v "#" | head -2 > {birdseed_report1}
+    </command>
+
+</tool>

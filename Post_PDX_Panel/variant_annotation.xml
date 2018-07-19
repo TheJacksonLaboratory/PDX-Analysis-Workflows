@@ -1,0 +1,148 @@
+<tool name="Variant_Annotation" walltime="5:00:00"
+      error_strings="'##### ERROR MESSAGE:'">
+    <description>
+        Annotate variants with snpEff and SnpSift.
+    </description>
+    <!--
+        Ins:
+	  1: variants_filtered
+	  2: microIndels_filtered 
+	  3: outdir
+        Outs:
+	  1: variants_filtered_annotated
+	  2: variants_hardfiltered_annotated
+    -->
+    
+   
+
+   <file id="snpEff" input="True"
+        filespec="snpEff/4.3/snpEff.jar" />
+          
+    <file id="snpSift" input="True"
+        filespec="snpEff/4.0e/SnpSift.jar" />
+    <file id="snpSift_4" input="True"
+        filespec="snpEff/4.3/SnpSift.jar" />
+
+    <file id="snpSift_onePerLine" input="True"
+        filespec="snpEff/4.2/scripts/vcfEffOnePerLine.pl" />
+
+
+    <file id="dbNSFP" input="True"
+        filespec="dbNSFP3.2a.txt.gz" />
+
+    <file id="vcf1"  temp ="True" in_dir="in_3"
+    	filespec="all_genes_variants_microindels.vcf" />
+
+    <file id="vcf2"  temp ="True" in_dir="in_3"
+    	filespec="all_genes_variants_microindels_filtered.vcf" />
+
+    	
+    <file id="vcf3"   temp ="True"  in_dir="in_3"
+    	filespec="all_genes_variants_microindels_snpEff.vcf" />
+
+    <file id="vcf4"  temp ="True" in_dir="in_3"
+    	filespec="all_genes_variants_microindels_snpEff_snpSift.vcf" />
+
+    <file id="vcf5" temp ="True"  in_dir="in_3"
+    	filespec="all_genes_variants_microindels_snpEff_snpSift_onePerLine.vcf" />
+
+   <file id="vcf6" temp ="True"  in_dir="in_3"
+           filespec="all_genes_variants_microindels_cosmicannotation.vcf" />
+
+    <file id="vcf7" temp ="True"  in_dir="in_3"
+           filespec="all_genes_variants_microindels_cosmicannotation_beforeintegenic.vcf" />
+
+   <file id="transcript_list" input="True" 
+        filespec="ensemble_transcript_snpeff_list_v1.txt" />
+
+    <!-- Step 4.6: Variant_Annotation -->
+    <module>java/1.8.0</module>
+    <module>perl/cga</module>
+    <module>vcf-tools/0.1.12a</module>
+    <module>python/2.7.3</module>
+
+    <validate id="snpEff" />
+    <validate id="snpSift" />
+    <validate id="snpSift_onePerLine" />
+
+   
+
+
+<command program="cat">
+        <!-- This version command looks strange, but is correct. The
+        cat command has no versioning, but the vcf-sort used below is part of the vcftools suite, so here we're getting its
+        version-->
+        <version_command>vcftools | grep VCFtools</version_command>
+                {in_1} {in_2} | vcf-sort > {vcf1}
+    </command>
+
+
+
+
+
+     <command program="java">
+        <!-- Flag algorithmically identified false positive variants 
+                        and 
+            variants with Allele Frequency < 5%.
+        -->
+        <version_command>java -jar {snpSift} 2>&amp;1 | grep version</version_command>
+        -jar {snpSift} filter --addFilter "lowAF" --rmFilter "PASS"  'ALT_AF[ANY] &lt; 5' {vcf1}  >  {vcf2}
+    </command>
+
+
+    <command program="java">
+    	<version_command>java -jar {snpEff} 2>&amp;1 | grep version</version_command>
+        -jar {snpEff} eff -v -lof -onlyTr  {transcript_list} -hgvs GRCh38.84
+         -noStats {vcf2} > {vcf3}
+    </command>
+
+
+    
+<command program="java">
+    	<version_command>java -jar {snpSift_4} 2>&amp;1 | grep version</version_command>
+        -jar {snpSift_4} dbnsfp -v -db {dbNSFP} -noDownload 
+        -f SIFT_score,SIFT_pred,Polyphen2_HDIV_score,MutationAssessor_score,phyloP100way_vertebrate,1000Gp3_AF,1000Gp3_AFR_AF,1000Gp3_EUR_AF,1000Gp3_AMR_AF,1000Gp3_EAS_AF,ESP6500_AA_AF,ESP6500_EA_AF,ExAC_AC,ExAC_AF
+        {vcf3} > {vcf4}
+    </command>
+
+
+
+    <command program="cat">
+        <!-- This version command looks strange, but is correct. The
+        cat command has no versioning, but the snpSift_onePerLine is
+        a perl script in the snpEff package, so here we're getting its
+        version-->
+    	<version_command>java -jar {snpEff} 2>&amp;1 | grep version</version_command>
+        {vcf4} | {snpSift_onePerLine} > {vcf5}
+    </command>
+
+    <command program="java">
+    	<!-- Add COSMIC annotation -->
+    	<version_command>java -jar {snpSift} 2>&amp;1 | grep version</version_command>
+    	-jar {snpSift} annotate -id {in_4} {vcf5} > {vcf6}
+    </command>
+
+    
+
+     <command program="java">
+        <version_command>java -jar {snpEff} 2>&amp;1 | grep version</version_command>
+        -jar {snpSift_4} extractFields {vcf6} 
+        CHROM POS REF ALT ID FILTER DP_HQ ALT_AF "LOF[*].NUMTR"
+        "LOF[*].PERC"
+        "EFF[*].GENE" "EFF[*].EFFECT" "EFF[*].IMPACT" "EFF[*].FUNCLASS" "EFF[*].RANK" "EFF[*].CODON" "EFF[*].AA" "EFF[*].AA_LEN" "EFF[*].CODING" "EFF[*].TRID" "dbNSFP_SIFT_score" "dbNSFP_SIFT_pred" "dbNSFP_Polyphen2_HDIV_score" "dbNSFP_MutationAssessor_score" "dbNSFP_phyloP100way_vertebrate" "dbNSFP_1000Gp3_AF" "dbNSFP_1000Gp3_AFR_AF" "dbNSFP_1000Gp3_EUR_AF" "dbNSFP_1000Gp3_AMR_AF" "dbNSFP_1000Gp3_EAS_AF" "dbNSFP_ESP6500_AA_AF" "dbNSFP_ESP6500_EA_AF" "dbNSFP_ExAC_AC" "dbNSFP_ExAC_AF" "CALLER"  > {out_1}
+    </command>
+    
+  <command program="clean_intergenic_region_gene_names.py">
+          <!-- There is no version command for this program. -->
+              -f {out_1}  -d 
+    </command>
+
+
+
+
+    <command program="cat" delimiters="//" stdout_id="out_2">
+        /out_1/ | awk -F '\t' 'BEGIN {OFS="\t"} $6 == "FILTER" || $6 == "PASS" || $6 == "" || $6 == "."'
+    </command>
+
+
+</tool>

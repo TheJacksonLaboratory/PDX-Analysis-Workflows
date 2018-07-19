@@ -1,0 +1,71 @@
+<tool name="Variant_Filtration" walltime="1:00:00"
+      error_strings="'##### ERROR MESSAGE:'"
+      threads="4">
+    <description>
+        Filter variants with DP less than 140, call variant effects with vep
+    </description>
+    <!--
+        Ins:
+          1: variants_raw
+        Outs:
+          1: variants_filtered
+    -->
+    
+    <!-- Step 4: Variant Calling -->
+    <module>python/2.7.3</module>
+    <module>java/1.7.0</module>
+    <module>perl/5.24.0</module>
+    <module>tabix/0.2.6</module>
+
+
+
+    <file id="dbsnp" input="True"
+        filespec="dbsnp_144.hg38.vcf.gz" />
+    <file id="snpEff" input="True"
+        filespec="snpEff/4.2/snpEff.jar" />
+          
+    <file id="snpSift" input="True"
+        filespec="snpEff/4.2/SnpSift.jar" />
+
+    <file id="vcf1" temp="True"
+        based_on="in_1" append=".DPfiltered_microindels.tmp.vcf" />
+
+    <file id="vcf2" temp="True"
+        based_on="in_1" append=".additionalfilters.tmp.vcf" />
+
+
+
+
+
+<validate id="snpSift" />
+
+    <command program="allele_depth_min_and_AF_from_ADs.py">
+        <!-- Compute coverage depth by adding allele counts.
+             Compute allele frequencies from allele counts.
+             Filter out any reads that don't have a minimum coverage
+             of 140.
+        -->
+        <version_command>allele_depth_min_and_AF_from_ADs.py -v</version_command>
+        {in_1} {vcf1} 140
+    </command>
+
+
+ <command program="java">
+        <version_command>java -jar {snpSift} 2>&amp;1 | grep version</version_command>
+        -jar {snpSift} annotate -id {dbsnp} {vcf1} > {vcf2}
+    </command>
+
+
+
+
+  <command program="caller_add_pindel.sh" >
+       {vcf2} {out_1}  
+    </command>
+    
+
+
+
+
+
+
+</tool>

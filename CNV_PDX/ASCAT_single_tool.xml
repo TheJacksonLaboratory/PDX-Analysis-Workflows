@@ -1,0 +1,36 @@
+<tool name="ASCAT_Single" tool_config_prefix="ASCAT1"
+      threads="1"
+      walltime="4:00:00"
+      error_strings="'##### ERROR MESSAGE:'">
+
+    <description>
+        ASCAT 2.4 Single sample
+    </description>
+    <!--
+     Ins:
+        1: snp_pos
+        2: lrrbaf_file
+        3: gcfile
+     Outs:
+        1: segments
+        2: ploidy
+        3: acf
+        4. nonaberrant
+        5: failed_sample
+        6: lrrbaf_file1
+    -->
+    
+    <!-- Modules needed to run on the cluster -->
+    <module>R/3.1.1</module>
+    
+    <file id="run_ascat_single" input="True" filespec="bin/lrrbaf_ascat_tumor.R" in_dir="PIPELINE_ROOT" />
+    
+    <command program="cut">
+        -f1-5 {in_2} > {out_6}
+    </command>
+
+    <command program="R">
+        CMD BATCH --slave "--args {in_1} {in_3}" {run_ascat_single}
+    </command>
+
+</tool>

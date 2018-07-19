@@ -1,0 +1,30 @@
+<tool name="classify_and_coverage"
+    threads="1"
+    tool_config_prefix="classifier"
+    walltime="04:00:00">
+    <description>
+        Run a classifier and exon level coverage statistics from alignment file
+    </description>
+    <!-- Files:
+        Ins:
+          1: gene_name_normalized file
+          
+          2: BVlym_classifier_table_48.txt
+        OutS:
+          1. classification_out
+       
+    -->
+    
+    <!-- Modules needed to run on the cluster -->
+    <module>samtools/0.1.18</module>
+    <module>bedtools/2.25.0</module>
+    <module>python/2.7.3</module>
+
+   
+
+
+    <command program="lymphoma_classifier.py">
+        -o {out_1} {in_1} {in_2} {in_3}
+    </command>
+
+</tool>

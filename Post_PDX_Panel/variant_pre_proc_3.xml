@@ -1,0 +1,53 @@
+<tool name="Variant_Pre_Processing_3" tool_config_prefix="HSmetrics"  walltime="1:00:00">
+    <description>
+        Calculating the target coverage using picard hybrid selection metrics
+    </description>
+    <!-- Files used:
+        Ins:
+          1: realigned_BQSR_bam
+          2: outdir
+	  3: ref, the genome reference
+        Outs:
+           1: coverage_metrics (not named in command line, implicit out.)
+    -->
+
+    <module>java/1.7.0</module>
+    <module>python/2.7.3</module>
+
+    <file id="picard" input="True"
+           filespec="picard/1.95/CalculateHsMetrics.jar" />
+
+    <validate id="picard" />
+
+<option name="targetfilepicard"   command_text="" value="targets_sorted_gatk_hg38_picard.bed"/>
+<option name="baitfilepicard"     command_text="" value="targets_gatk_hg38_picard.bed"/>
+
+
+
+
+    <!--Step 3.6: Picard CalculateHsMetrics (generating target enrichment
+        information)-->
+    <file id="coverage_metrics" in_dir="in_2" filespec="CoverageMetrics.txt" />
+    <command program="java">
+        <version_command>
+            echo -n "Picard CalculateHsMetrics "; java -jar {picard} --version
+        </version_command>
+        -Djava.io.tmpdir=$TMPDIR
+        -jar -Xmx2g  {picard}
+        TARGET_INTERVALS={targetfilepicard}
+        BAIT_INTERVALS={baitfilepicard}
+        REFERENCE_SEQUENCE={in_3}
+        INPUT={in_1} OUTPUT={out_1}
+        VALIDATION_STRINGENCY=LENIENT
+    </command>
+
+    <command program="filter_dna_coverage.py">
+
+       <!--There is no version command for this program.--> 
+
+       <!-- Using default requirements to pass: 75% at 100X-->
+ 
+        {out_1}
+    </command>
+
+</tool>

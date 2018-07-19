@@ -1,0 +1,36 @@
+<tool name="Variant_Pre_Processing_1" walltime="7:00:00">
+    <description>
+        GATK steps to get ready for variant calling. Part 1 of 3.
+    </description>
+    <!-- Files used:
+        Ins: sam, outdir
+        Outs: bam_dedupe, metrics, bam
+    -->
+
+    <module>java/1.8.0</module>
+
+    <file id="PicardMaster"    input="True" filespec="picard/2.8.1/picard.jar" />
+ 
+    <file id="Sorted" temp="True"  filespec="sorted.bam" />
+
+    <validate id="PicardMaster" />
+
+    <!-- Step3.1: Picard SortSam.jar (generating sorted alignment bam file) -->
+    <command program="java">
+    <version_command>echo -n "Picard SortSam"; java -jar {PicardMaster} SortSam --version</version_command>
+     -Djava.io.tmpdir=$TMPDIR
+     -Xmx4g -jar {PicardMaster} SortSam SO=coordinate
+     INPUT={in_1} OUTPUT={Sorted} VALIDATION_STRINGENCY=SILENT
+     CREATE_INDEX=true
+    </command>
+
+    <!-- Step3.2:  Picard Mark Duplicates (Removing duplicates in BAM file) -->
+    <command program="java">
+    <version_command>echo -n "Picard MarkDuplicates "; java -jar {PicardMaster} MarkDuplicates --version</version_command>
+      -Djava.io.tmpdir=$TMPDIR
+      -Xmx4g -jar {PicardMaster} MarkDuplicates  I={Sorted}
+      O={out_1} M={out_2} REMOVE_DUPLICATES=true
+      CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT
+    </command>
+
+</tool>

@@ -1,0 +1,120 @@
+<tool name="microIndel_Caller" tool_config_prefix="pindelmicroindel"  walltime="23:00:00"
+      error_strings="'##### ERROR MESSAGE:'">
+    <description>
+        Call micro INDELs from our pre-processed BAM file.
+    </description>
+    <!--
+        Ins:
+	  1: realigned_BQSR_bam
+	  2: sample_name 
+	  3: ref (fasta)
+	  4: outdir
+        Outs:
+	  1: microIndels_raw
+	  2: microIndels_filtered
+    -->
+    
+    <file id="snpSift" input="True"
+      filespec="snpEff/4.1g/SnpSift.jar" />
+    
+    <file id="BP" temp="True" in_dir="in_5" 
+    based_on="in_2" append="_BP" />
+    <file id="CloseEndMapped" temp="True" in_dir="in_5" 
+    based_on="in_2" append="_CloseEndMapped" />
+    <file id="D" temp="True" in_dir="in_5" 
+    based_on="in_2" append="_D" />
+    <file id="DSI" temp="True" in_dir="in_5" 
+    based_on="in_2" append="_DSI" />
+    <file id="INT" temp="True" in_dir="in_5" 
+    based_on="in_2" append="_INT" />
+    <file id="INT_final" temp="True" in_dir="in_5" 
+    based_on="in_2" append="_INT_final" />
+    <file id="INV" temp="True" in_dir="in_5" 
+    based_on="in_2" append="_INV" />
+    <file id="LI" temp="True" in_dir="in_5" 
+    based_on="in_2" append="_LI" />
+    <file id="RP" temp="True" in_dir="in_5" 
+    based_on="in_2" append="_RP" />
+    <file id="SI" temp="True" in_dir="in_5" 
+    based_on="in_2" append="_SI" />
+    <file id="TD" temp="True" in_dir="in_5" 
+    based_on="in_2" append="_TD" />
+    <file id="pindel_config" temp="True" in_dir="in_5"
+    filespec="pindel_config.txt" />
+    <file id="vcf1" temp="True" in_dir="in_5"
+    filespec="microIndels_all.txt" />
+    <file id="vcf2" temp="True" in_dir="in_5"
+        based_on="in_2" append=".microindels_DPfiltered.tmp.vcf" />
+<file id="vcf3" temp="True" in_dir="in_5"
+        based_on="in_2" append=".microindels_DPfiltered_AF.tmp.vcf" />
+
+    <!-- Step 4.3: Micro INDEL Calling -->
+    <module>samtools/0.1.19</module>
+    <module>pindel/0.2.5a3</module>
+    <module>bedtools/2.17.0</module>
+    <module>java/1.7.0</module>
+    <module>python/2.7.3</module>
+    
+     <validate id="snpSift" />
+     
+
+
+<option name="targetfilepindel"   command_text="" value="targets_sorted_gatk_hg38.bed"/>
+
+     
+    <command program="samtools">
+        <version_command>echo -n "samtools: "; samtools 2>&amp;1 | grep Version</version_command>
+        index {in_1}
+    </command>
+
+    <!-- Create an environment variable for use in this tool... -->
+    <command program="">
+    sn=`basename {in_2}`
+    </command>
+
+    <command program="echo">
+         -e "{in_1}\t350\t$sn" > {pindel_config}
+    </command>
+
+    <command program="pindel">
+        <version_command>pindel --version | grep ^Pindel</version_command>
+        --config-file {pindel_config}
+        --fasta {in_3}
+        -o {in_5}/$sn
+    </command>
+    
+    <command program="cat" delimiters="||">
+        |in_5|/${sn}_D |in_5|/${sn}_SI > |in_5|/${sn}_DSI
+    </command>
+    
+    <command program="pindel2vcf" delimiters="||">
+        <version_command>pindel2vcf --help | grep ^Version</version_command>
+        -p |in_5|/${sn}_DSI
+        -r |in_3| -R hg38 -d 20150925 
+        --max_size 50 
+        --vcf |vcf1| -G --het_cutoff 0.05
+    </command>
+
+    <command program="bedtools">
+        <version_command>bedtools --version</version_command>
+        intersect -header -a {vcf1} -b {targetfilepindel} -f 1.0 > {out_1}
+    </command>
+
+    <command program="filter_for_minimum_depth">
+        <version_command>filter_for_minimum_depth --version</version_command>
+        {out_1} {out_2}
+
+    </command>
+    
+
+
+
+ <!-- PINDEL will not create files if variants of specific types are not found in the sample. So to prevent "rm" error on missing files, we are going to touch all PINDEL intermediate files declared above... -->
+    <command program="touch" delimiters="||">
+        |in_5|/${sn}_BP |in_5|/${sn}_D |in_5|/${sn}_DSI |in_5|/${sn}_INT |in_5|/${sn}_INT_final |in_5|/${sn}_INV |in_5|/${sn}_LI |in_5|/${sn}_RP |in_5|/${sn}_SI |in_5|/${sn}_TD
+    </command>
+
+
+
+
+</tool>

@@ -1,0 +1,108 @@
+<tool name="BWA_MEM_Alignment"
+    threads="12"
+    walltime="8:00:00"
+    tool_config_prefix="bwa_mem_align">
+    <description>
+        First process a fastq file to extract read group information with
+        read_group_from_fastq.py. Then align a pair of fastq files.
+        Any quality checking and trimming must be done before this step.
+    </description>
+    <!-- Files:
+        Ins:
+          1: fastq_e1
+          2: fastq_e2
+          3: index prefix
+          4: rg_info
+        Outs:
+          1: sam
+    -->
+    
+    <!-- Modules needed to run on the cluster -->
+    <module>bwakit/0.7.15</module>
+    <module>samtools/0.1.18</module>
+    <module>python/2.7.3</module>
+
+    <!-- will be written to the default output dir -->
+    <file id="read_group" temp="True" filespec="read_group.txt" />
+    <!--
+        Files:
+        Ins: fastq
+        Outs: read_group_data
+    -->
+
+    <!-- No special modules needed
+
+     -->
+    <command program="read_group_from_fastq.py">
+      <version_command>read_group_from_fastq.py --version</version_command>
+      {in_1} {read_group}
+    </command>
+    
+    <!--
+        Files we have to verify as unchanged, in addition to the commands.
+        (Command program names are automatically added to the validate list,
+        so they don't need to be added here. (Here, the reference sequence.)
+    -->
+
+   <file id="bwa7_idx_pfx" filespec="hs38DH.fa" in_dir="in_3" />
+
+   <file id="bwa_alt" input="True"
+        filespec="hg38_bwa_alt_aware_indices/bwa" />
+   <file id="seqtk" input="True"
+        filespec="hg38_bwa_alt_aware_indices/seqtk" />
+   <file id="k8" input="True"
+        filespec="hg38_bwa_alt_aware_indices/k8" />
+   <file id="postalt" input="True"
+        filespec="hg38_bwa_alt_aware_indices/bwa-postalt.js" />
+
+
+ <file id="merged_fq" temp="True"
+        filespec="merged.fastq" />
+ <file id="intial_sam" temp="True"
+        filespec="temp.sam" />
+  <file id="out" temp="True"
+        filespec="out" />
+
+<file id="refalt" input="True"
+        filespec="hg38_bwa_alt_aware_indices/hs38DH.fa.alt" />
+
+<file id="samtools" input="True"
+        filespec="hg38_bwa_alt_aware_indices/samtools" />
+
+
+
+
+    <!--
+        Create file entries for all the bwa index files purely for the
+        ability to validate them. We actually just pass the index
+        prefix into bwa; it knows about all the extensions.
+    -->
+    <file id="idx_1" in_dir="in_3" based_on="bwa7_idx_pfx"
+          append=".amb" />
+    <file id="idx_2" in_dir="in_3" based_on="bwa7_idx_pfx"
+          append=".ann" />
+    <file id="idx_3" in_dir="in_3" based_on="bwa7_idx_pfx"
+          append=".bwt" />
+    <file id="idx_4" in_dir="in_3" based_on="bwa7_idx_pfx"
+          append=".pac" />
+    <file id="idx_5" in_dir="in_3" based_on="bwa7_idx_pfx"
+          append=".sa" />
+    <validate id="idx_1" />
+    <validate id="idx_2" />
+    <validate id="idx_3" />
+    <validate id="idx_4" />
+    <validate id="idx_5" />
+
+    <!-- Create an option for the read group, from the contents of rg_info -->
+    <option name="rg" command_text="-R" from_file="read_group" />
+
+    <option name="threads" command_text="-t" type="threads" />
+
+
+
+    <command program="">
+    hg38_bwa_alt_aware_indices/run-bwamem -t 12   {rg} -o out -H {bwa7_idx_pfx} {in_1} {in_2} | sh
+    </command>
+  
+
+</tool>

@@ -1,0 +1,98 @@
+<tool name="Variant_Caller" tool_config_prefix="UnifiedGenotyper" walltime="23:00:00"
+      error_strings="'##### ERROR MESSAGE:'">
+    <description>
+        callng & first pass filtering of the variants from our pre-processed BAM file using GATK unifiedGenotyper & GATK variantFiltration, respectively
+    </description>
+    <!--
+        Ins:
+	  1: realigned_BQSR_bam
+	  2: output(directory)
+	  3: ref
+        Outs:
+	  1: variants_raw
+    -->
+    
+    <!-- Step 4: Variant Calling -->
+    <module>java/1.7.0</module>
+    <module>GATK/3.4-0</module>
+    <module>perl</module>
+    <module>vcf-tools/0.1.12a</module>
+
+<file id="rawgatk" temp="True" 
+    	filespec="raw_gatk.vcf" />
+<file id="rawsnp" temp="True" 
+    	filespec="raw_snps.vcf" />
+<file id="rawindel" temp="True" 
+    	filespec="raw_indels.vcf" />
+
+<file id="filteredsnp" temp="True" 
+    	filespec="filtered_snps.vcf" />
+<file id="filteredindel" temp="True" 
+    	filespec="filtered_indels.vcf" />
+
+
+    <file id="dbsnp_144" input="True"
+	  filespec="dbsnp_144.hg38.vcf.gz" />
+ 
+    <file id="gatk" input="True"
+          filespec="GATK/3.4-0/GenomeAnalysisTK.jar" />
+   
+    <validate id="gatk" />
+    <validate id="dbsnp_144" />
+
+<option name="targetfilegatk"   command_text="" value="targets_sorted_gatk_hg38.bed"/>
+
+    <!--
+	Run without threads and without downsampling to get consistent
+	results.
+    -->
+    <command program="java">
+        <version_command>java -jar {gatk} --help | grep "(GATK)"</version_command>
+        -Djava.io.tmpdir=$TMPDIR
+        -Xmx2g -jar {gatk} -R {in_3}
+        -T UnifiedGenotyper -I {in_1}
+        --dbsnp {dbsnp_144} -glm BOTH -o {rawgatk} -stand_call_conf 50.0
+        -stand_emit_conf 30.0 -dt NONE -L {targetfilegatk} --sample_ploidy 4 --disable_auto_index_creation_and_locking_when_reading_rods
+    </command>
+    
+    <command program="java">
+        <version_command>java -jar {gatk} --help | grep "(GATK)"</version_command>
+        -Djava.io.tmpdir=$TMPDIR
+        -Xmx2g -jar {gatk} -T SelectVariants  -R {in_3} -V {rawgatk} -L {targetfilegatk} -selectType SNP -o {rawsnp}
+      </command>
+    
+    <command program="java">
+        <version_command>java -jar {gatk} --help | grep "(GATK)"</version_command>
+        -Djava.io.tmpdir=$TMPDIR
+        -Xmx2g -jar {gatk} -T SelectVariants  -R {in_3} -V {rawgatk} -L {targetfilegatk} -selectType INDEL -o {rawindel}
+      </command>
+    
+    
+    
+     <command program="java">
+        <version_command>java -jar {gatk} --help | grep "(GATK)"</version_command>
+        -Djava.io.tmpdir=$TMPDIR
+        -Xmx2g -jar {gatk} -R {in_3}
+        -T VariantFiltration   --variant {rawsnp} --clusterSize 3 --clusterWindowSize 10    --filterExpression "QD &lt; 2.0"  --filterName "lowQD"   --filterExpression "FS &gt; 60.0"   --filterName "strandbias" --filterExpression "MQ &lt; 40"   --filterName "lowMQ"  --filterExpression "MQRankSum &lt; -12.5"   --filterName "lowMQRankSum" --filterExpression "ReadPosRankSum &lt; -8"   --filterName "lowReadPosRankSum"  -o {filteredsnp}
+    </command>
+    
+    
+    <command program="java">
+        <version_command>java -jar {gatk} --help | grep "(GATK)"</version_command>
+        -Djava.io.tmpdir=$TMPDIR
+        -Xmx2g -jar {gatk} -R {in_3}
+        -T VariantFiltration   --variant {rawindel}   --filterExpression "QD &lt; 2.0"  --filterName "lowQD"   --filterExpression "FS &gt; 200.0"   --filterName "strandbias"  --filterExpression "ReadPosRankSum &lt; -20"   --filterName "lowReadPosRankSum"  -o {filteredindel}
+    </command>
+    
+
+ <command program="cat">
+        <!-- This version command looks strange, but is correct. The
+        cat command has no versioning, but the vcf-sort used below is part of the vcftools suite, so here we're getting its
+        version-->
+    	<version_command>vcftools | grep VCFtools</version_command>
+		{filteredsnp} {filteredindel} | vcf-sort > {out_1}
+    </command>
+    
+    
+
+</tool>

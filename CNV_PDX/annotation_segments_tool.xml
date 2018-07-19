@@ -1,0 +1,43 @@
+<tool name="Annotation_segments" tool_config_prefix="ANNOTATE"
+      threads="1"
+      walltime="4:00:00"
+      error_strings="'##### ERROR MESSAGE:'"
+      exit_if_exists="in_3">
+
+    <description>
+        Annotate ASCAT segments with LOH, chromosome arm fraction, ploidy.
+        Annotate ensembl genes with copy number (CN).
+        Rename relevant files with sample name.
+    </description>
+    
+    <!--
+     Ins:
+        1: segments
+        2: ploidy
+        3: failed_sample
+        4: ensemble_gene
+        5: chr_arm
+        6: outdir
+        7: gender
+    Outs:
+        1: segments_cn
+        2: genes_cn
+    -->
+    
+    <file id="segment_ploidy" input="True"
+        filespec="bin/segment_raw_extend.pl" in_dir="PIPELINE_ROOT" />
+    
+    <file id="segment_gene" input="True"
+        filespec="bin/ensemblegenes_cnv_break.pl" in_dir="PIPELINE_ROOT" />
+    
+    <file id="tmp" temp="True" filespec="tmp.txt" in_dir="in_6" />
+    
+    <command program="perl" >
+        {segment_ploidy} {in_1} {in_2} {in_5} {in_7}
+    </command>
+    
+    <command program="perl" >
+        {segment_gene} {out_1} {in_4}
+    </command>
+
+</tool>

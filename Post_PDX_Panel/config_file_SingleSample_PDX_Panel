@@ -1,0 +1,7 @@
+VaPrePro2.targetfilegatk=targets_sorted_gatk_hg38.bed
+HSmetrics.targetfilepicard=targets_sorted_gatk_hg38_picard.bed
+HSmetrics.baitfilepicard=targets_gatk_hg38_picard.bed
+UnifiedGenotyper.sample_ploidy=4
+UnifiedGenotyper.targetfilegatk=targets_sorted_gatk_hg38.bed
+pindelmicroindel.targetfilepindel=targets_sorted_gatk_hg38.bed
+gatkcoverage.targetfile=hg38_noheader_withNames.bed

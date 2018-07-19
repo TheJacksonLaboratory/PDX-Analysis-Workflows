@@ -1,0 +1,47 @@
+<tool name="LRR_BAF" tool_config_prefix="LRR_BAF"
+      threads="1"
+      walltime="8:00:00"
+      error_strings="'##### ERROR MESSAGE:'">
+
+    <description>
+        Normalize snp array cancer cel file with 300 hapmap cel files, and outputs LRR (Log R ratio) and BAF (B-Allele Frequency) using genoclustering
+    </description>
+    <!--
+     Ins:
+        1: cel_list
+        2: outdir
+     Outs:
+        1: lrrabaf_file
+    -->
+    
+    <!-- Modules needed to run on the cluster -->
+    <module>apt/1.15.0</module>
+
+    <dir id="datafiles" input="True" filespec="cnv_pipeline_support" />
+
+    <file id="cdf" input="True" in_dir="datafiles"
+        filespec="PennCNV_Affy/gw6/lib/CD_GenomeWideSNP_6_rev3/Full/GenomeWideSNP_6/LibFiles/GenomeWideSNP_6.cdf" />
+
+    <file id="target" input="True" in_dir="datafiles"
+        filespec="PennCNV_Affy/gw6/lib/gw6/lib/hapmap.quant-norm.normalization-target.txt" />
+
+    <file id="summary" temp="True" filespec="quant-norm.pm-only.med-polish.expr.summary.txt" in_dir="in_2" />
+    <file id="report" temp="True" filespec="quant-norm.pm-only.med-polish.expr.report.txt" in_dir="in_2" />
+    
+    <option name="analysis" command_text="--analysis" value="quant-norm.sketch=50000,pm-only,med-polish,expr.genotype=true" />
+    
+    <command program="">
+        apt-probeset-summarize --cdf-file {cdf} {analysis} --target-sketch {target} --out-dir {in_2} --cel-files {in_1}
+    </command>
+
+    <file id="geno_cluster" input="True" in_dir="datafiles" filespec="PennCNV_Affy/gw6/lib/gw6/bin/normalize_affy_geno_cluster.pl" />
+
+    <file id="clusterfile" input="True" in_dir="datafiles" filespec="p_vanloo/gw6.genocluster" />
+
+    <file id="pfb" input="True" in_dir="datafiles" filespec="miscdatafiles/affygw6.hg38.pfb" />
+    
+    <command program="">
+        {geno_cluster} {clusterfile} {summary} -locfile {pfb} -out {out_1}
+    </command>
+        
+</tool>

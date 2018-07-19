@@ -1,0 +1,22 @@
+<tool name="Summary_Metrics" tool_config_prefix="SumMetrics" walltime="00:15:00">
+    <description>
+        Collecting Summary metrics.
+    </description>
+
+    <!-- Files used:
+        Ins: 
+          1. filter/*_stat
+          2. xenome_stats
+          3. rsem_stat
+          4: picard_stat
+        Outs:
+          1. summary_metrics
+    -->
+
+    <module>perl</module>
+
+     <command program="summary_QC_metrics.pl" stdout_id="out_1">
+        {in_1} {in_2} {in_3} {in_4}
+     </command>
+
+</tool>

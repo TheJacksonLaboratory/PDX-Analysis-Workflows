@@ -1,0 +1,19 @@
+<tool name="read_group"  tool_config_prefix="readgroup">
+  <description>
+    Process a fastq file to extract read group information.
+  </description>
+
+  <!--
+      Files:
+      Ins: fastq
+      Outs: read_group_data
+  -->
+
+  <module>python/2.7.3</module>
+  <!-- '-p' option is for read_group format required for Picard -->
+
+  <command program="read_group_from_fastq.py">
+    <version_command>read_group_from_fastq.py --version</version_command>
+    {in_1} {out_1} -p
+  </command>
+</tool>

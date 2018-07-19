@@ -1,0 +1,42 @@
+<tool name="XENOME" tool_config_prefix="XENOME_CLASS" walltime="08:00:00" threads="12">
+    <description>
+        classify the input fastq file to human and mouse
+    </description>
+    <!--
+        Ins:
+	  1: fastq_file1
+	  2: fastq_file2
+	  3: Xenome WGS indices
+        Outs:
+	  1: human_1.fastq
+	  2: human_2.fastq
+	  3: xenome classification
+    -->
+    
+    <!-- Step 1: Xenome Classification -->
+    <module>xenome</module>
+    <module>perl</module>
+
+    <!--
+        Declaring some files created by this tool that we want to delete.
+        By declairing them as temp they will get deleted at the end of this
+        job.
+    -->
+    <file id="both1" filespec="both_1.fastq" temp="True" />
+    <file id="both2" filespec="both_2.fastq" temp="True" />
+    <file id="mouse1" filespec="mouse_1.fastq" temp="True" />
+    <file id="mouse2" filespec="mouse_2.fastq" temp="True" />
+    <file id="neither1" filespec="neither_1.fastq" temp="True" />
+    <file id="neither2" filespec="neither_2.fastq" temp="True" />
+    <file id="ambiguous1" filespec="ambiguous_1.fastq" temp="True" />
+    <file id="ambiguous2" filespec="ambiguous_2.fastq" temp="True" />
+
+    <option name="threads" type="threads" command_text="-T"/>
+
+    <command program="xenome" stdout_id="out_3">
+        classify {threads} -P  {in_3}
+        --pairs --host-name  mouse  --graft-name human  -i {in_1} -i {in_2}
+    </command>
+
+   
+</tool>

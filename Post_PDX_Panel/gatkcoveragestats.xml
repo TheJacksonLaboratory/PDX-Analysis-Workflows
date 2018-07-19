@@ -1,0 +1,53 @@
+<tool name="gatk_coverage" walltime="08:00:00" tool_config_prefix="gatkcoverage"
+      error_strings="'##### ERROR MESSAGE:'">
+    
+  
+<!-- Inputs and Description:
+
+
+This series of scripts will help to calculate coverage per interval of bam file
+    in_1 : Realigned bam file
+    in_2: Reference genome
+    in_3:  outdir
+    Outputs:
+    out_1: The tab file with coverage .
+-->
+
+
+
+
+
+<module>java/1.7.0</module>
+<module>GATK/3.4-0</module>
+<module>bedtools/2.17.0</module>
+<module>python/2.7.3</module>
+
+<file id="gatk" input="True"
+  filespec="GATK/3.4-0/GenomeAnalysisTK.jar" />
+
+<option name="targetfile"   command_text="" value="hg38_noheader_withNames.bed"/>
+
+
+
+<command program="java">
+ <version_command>java -jar {gatk} --help | grep "(GATK)"</version_command>
+    -Djava.io.tmpdir=$TMPDIR -Xmx12g -jar {gatk} -T DepthOfCoverage   -R {in_2} --outputFormat table -o {out_1} -I {in_1} -L {targetfile} --omitPerSampleStats --omitIntervalStatistics --omitLocusTable
+</command>
+    
+
+<command program="gatk_formatter.sh" >
+        {out_1} {out_2} {out_3} {targetfile}
+    </command>
+
+
+
+ <command program="coveragecalculator.py">
+        <version_command>coveragecalculator.py --version</version_command>
+
+
+       {out_3}  {out_4} 
+    </command>
+
+
+ 
+</tool>

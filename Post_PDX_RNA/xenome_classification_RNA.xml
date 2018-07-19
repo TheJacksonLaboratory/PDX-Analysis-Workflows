@@ -1,0 +1,40 @@
+<tool name="Xenome_Classification" tool_config_prefix="XENOME" walltime="23:00:00"
+      error_strings="'##### ERROR MESSAGE:'"
+      threads="12">
+    <description>
+        Classify input reads into mouse and human subsets (also both,
+        ambiguous, and neither). Terminate the run if there are fewer than N
+        human reads. N defaults to 1,000,000.
+    </description>
+    <!--
+        Ins:
+	  1: fastq_file1
+	  2: fastq_file2
+	  3: Index dir
+        Outs:
+	  1: human_1.fastq, human_2.fastq
+	  2: mouse_1.fastq, mouse_2.fastq
+	  3. both_1.fastq,  both_2.fastq
+	  4. ambiguous_1.fastq, ambiguous_2.fastq
+	  5. neither_1.fastq, neither_2.fastq
+	  
+    -->
+    
+    <!-- Step 1: Xenome Classification -->
+    <module>xenome/1.0.0</module>
+    <module>perl</module>  
+    <module>python/2.7.3</module>
+
+    <option type="threads" name="threads" command_text="-T"/>
+    <option name="min_reads" command_text="-m" value="1000000" />
+    <command program="xenome classify" stdout_id="out_3">
+        {threads} -P
+        {in_3}
+        --pairs --host-name  mouse  --graft-name human  -i {in_1} -i {in_2}
+    </command>
+
+    <command program="filter_rna_coverage.py">
+        {min_reads} *xenome_stats.txt
+    </command>
+
+</tool>

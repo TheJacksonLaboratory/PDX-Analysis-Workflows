@@ -1,0 +1,43 @@
+#! /usr/bin/env python
+
+"""Flag variant calls without sufficient support.
+
+This is a very simple script to process VCF files produced by the 
+micro-indel caller, pindel.  Pindel marks all calls as "PASS" in the 
+filter column.  Our requirement is that a variant have at least
+140 reads supporting it; otherwise, we mark it as 'minDP'"""
+
+import sys, os
+
+def usage():
+    print >> sys.stderr, 'USAGE: {0} input-VCF output-VCF'.format(
+        sys.argv[0])
+    sys.exit(1)
+
+def main():
+    # Check for a version request.
+    version.parse_options()
+
+    if len(sys.argv) != 3:
+        usage()
+
+    of = open(sys.argv[2], 'w')
+    for line in open(sys.argv[1]):
+        if line[0] == '#':
+            of.write(line)
+            continue
+
+        # We're done with the headers.  Now we need to analyze each variant
+        # call.  If the total reads supporting the call are less than 140,
+        # then mark the filter column (column 7, or parts[6]) as 'minDP'.
+        # The allele read counts are in the last column, parts[9].
+        parts = line.rstrip().split('\t')
+        sample_data = parts[9]
+        read_counts = sample_data.split(':')[1]
+        ref_count, allele_count = read_counts.split(',')
+        
+        depth = int(ref_count) + int(allele_count)
+        if depth < 140:
+            parts[6] = 'minDP'
+        of.write( '\t'.join(parts) + os.linesep)
+main()

@@ -1,0 +1,112 @@
+<!--
+Civet pipeline for processing cancer Affy SNP 6.0 array samples
+-->
+
+<pipeline name="SingleSample_CNV_SNParray">
+    <!-- First, set up the files this pipeline will use -->
+    <!--
+        At first, these will all be real files.  Over time we may
+        make some of them tempfiles, to get cleaned up at the end.
+    -->
+
+    <!--
+        The files needed for the first step of the pipeline:
+     
+    -->
+    <file id="snp_cel" input="True" parameter="1" />
+
+    <!--
+        Grab the model name from the input file name.  The model number is
+        the first field when split on underscores. The ? in the first pattern
+        causes the search to not be greedy.
+    -->
+    <string id="model" based_on="snp_cel" pattern="(.*?)_.*" replace="\1"/>
+
+    <!--
+        To mitigate the possibility of file name hits when multiple 
+        pipelines are run simultaneously, we'll create some files with
+        the sample name as a prefix.
+    -->
+    <file id="sample_name" based_on="snp_cel" pattern="(.*)[.]CEL"
+          replace="\1" />
+
+    <!-- 
+        The pipeline's default output directory.
+        File sample_name_with_date is never directly used, it only exists to build the outdir name.
+     -->
+    <file id="sample_name_with_date" based_on="sample_name" datestamp_prepend="%y%m%d-%H%M%S_" />
+    <dir id="outdir" based_on="sample_name_with_date" default_output="True" append="_ascatresult" />
+
+    <dir id="datafiles" input="True" filespec="cnv_pipeline_support/miscdatafiles" />
+    <dir id="scripts_dir"  input="True" filespec="cnv_pipeline_support/scripts" />
+
+    <file id="hapmap_list_female" input="True" in_dir="datafiles"
+        filespec="hapmap_female300_SNP6.txt" />
+    
+    <file id="hapmap_list_male" input="True" in_dir="datafiles"
+        filespec="hapmap_male300_SNP6.txt" />
+
+    <dir id="norm_cel" input="True"
+    filespec="hapmap.ncbi.nlm.nih.gov" />
+    
+    <file id="snp_pos" input="True" in_dir="datafiles"
+        filespec="SNPpos_Affy_na36_hg38.txt" />
+    
+    <file id="gcfile" input="True" in_dir="datafiles"
+        filespec="GC_AffySNP6_na36_hg38.txt" />
+
+    <file id="gender_final" temp="False" in_dir="outdir" filespec="gender.txt"/>
+    
+    <file id="gender_elims" temp="False" in_dir="outdir" filespec="gender_elims.txt"/>
+    
+    <file id="gender_birdseed" temp="False" in_dir="outdir" filespec="gender_birdseed.txt"/>
+    
+    <file id="cel_list" temp="True" in_dir="outdir" filespec="listfile1"/>
+
+    <step name="Gender">
+        <tool name="Gender_single"
+            input="model, snp_cel, norm_cel, hapmap_list_female, hapmap_list_male, outdir"
+            output="gender_final, cel_list, gender_elims, gender_birdseed"
+            description="gender_single_tool.xml" />
+    </step>
+    
+    <file id="lrrbaf_file" temp="True" in_dir="outdir" filespec="lrr_baf.txt"/>
+    <file id="lrrbaf_file1" temp="False" in_dir="outdir" filespec="lrr_baf1.txt"/>
+    
+    <step name="LRRBAF">
+        <tool name="LRR_BAF"
+        input="cel_list, outdir"
+        output="lrrbaf_file"
+        description="lrrbaf_tool.xml" />
+    </step>
+
+    <file id="segments" temp="False" in_dir="outdir" based_on="sample_name" append=".segments_raw.txt"/>
+    <file id="ploidy" temp="False" in_dir="outdir" based_on="sample_name" append=".ploidy.txt"/>
+    <file id="acf" temp="False" in_dir="outdir" based_on="sample_name" append=".aberrantcellfraction.txt"/>
+    <file id="nonaberrant" temp="False" in_dir="outdir" based_on="sample_name" append=".nonaberrantarrays.txt"/>
+    <file id="failed_sample" temp="False" in_dir="outdir" based_on="sample_name" append=".failedarrays.txt" />
+    
+    <step name="ASCAT">
+        <tool name="ASCAT_Single"
+        input="snp_pos, lrrbaf_file, gcfile"
+        output="segments, ploidy, acf, nonaberrant, failed_sample, lrrbaf_file1 "
+        description="ASCAT_single_tool.xml" />
+    </step>
+    
+    <file id="chr_arm" input="True" in_dir="scripts_dir"
+        filespec="GRCh38_chromosome_arm.txt" />
+    
+    <file id="ensemble_gene" input="True" in_dir="datafiles"
+        filespec="mart_export_gene_chr1-Y.GRCh38ensembl84.20170420.txt" />
+    
+    <file id="segments_cn" temp="False" in_dir="outdir" based_on="sample_name" append=".segments_raw.extend.txt" />
+    <file id="genes_cn" temp="False" in_dir="outdir" based_on="sample_name" append=".segments_raw.extend.ensgene_cnvbreak.txt" />
+    
+    <step name="Annotation">
+        <tool name="Annotation_segments"
+        input="segments, ploidy, failed_sample, ensemble_gene, chr_arm, outdir, gender_final"
+        output="segments_cn, genes_cn"
+        description="annotation_segments_tool.xml" />
+    </step>
+    
+</pipeline>
